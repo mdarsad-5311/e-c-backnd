@@ -30,6 +30,17 @@ class OrderViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ["update", "partial_update", "status_update", "destroy"]:
+            return [permissions.IsAdminUser()]
+        return [permissions.IsAuthenticated()]
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {"detail": "Order deletion is not allowed."},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
     def get_throttles(self):
         if self.action == 'create':
             self.throttle_scope = 'checkout'
@@ -176,7 +187,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 tax_amount=tax_amount,
                 total_amount=total_amount,
                 payment_method=payment_method,
-                payment_status=Order.PaymentStatus.PAID,
+                payment_status=Order.PaymentStatus.PENDING,
                 shipping_full_name=full_name,
                 shipping_phone=phone,
                 shipping_address_line1=line1,
@@ -259,6 +270,58 @@ class OrderViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    def _apply_status_update(self, order, validated_data, request):
+        new_status = validated_data.get("status")
+        tracking_num = validated_data.get("tracking_number")
+        notes = validated_data.get("notes")
+
+        if order.status == Order.OrderStatus.CANCELLED:
+            return Response(
+                {"detail": "Cancelled orders cannot be modified or processed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_status and new_status != order.status:
+            if order.status == Order.OrderStatus.DELIVERED:
+                return Response(
+                    {"detail": "Delivered orders cannot be modified."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            order.status = new_status
+
+        update_fields = ["updated_at"]
+        if new_status:
+            update_fields.append("status")
+        if tracking_num is not None:
+            order.tracking_number = tracking_num
+            update_fields.append("tracking_number")
+        if notes is not None:
+            order.notes = notes
+            update_fields.append("notes")
+
+        order.save(update_fields=update_fields)
+        logger.info(f"Order status updated: {order.order_number} to {order.status}")
+
+        detail_serializer = OrderDetailSerializer(order, context={"request": request})
+        return Response(
+            {
+                "detail": f"Order status updated to '{order.get_status_display()}'.",
+                "order": detail_serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        order = self.get_object()
+        serializer = OrderStatusUpdateSerializer(data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        return self._apply_status_update(order, serializer.validated_data, request)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
     @action(
         detail=True,
         methods=["patch", "put", "post"],
@@ -272,30 +335,4 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         serializer = OrderStatusUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        new_status = serializer.validated_data["status"]
-        tracking_num = serializer.validated_data.get("tracking_number")
-        notes = serializer.validated_data.get("notes")
-
-        order.status = new_status
-        update_fields = ["status", "updated_at"]
-
-        if tracking_num is not None:
-            order.tracking_number = tracking_num
-            update_fields.append("tracking_number")
-
-        if notes is not None:
-            order.notes = notes
-            update_fields.append("notes")
-
-        order.save(update_fields=update_fields)
-        logger.info(f"Order status updated: {order.order_number} to {new_status}")
-
-        detail_serializer = OrderDetailSerializer(order, context={"request": request})
-        return Response(
-            {
-                "detail": f"Order status updated to '{order.get_status_display()}'.",
-                "order": detail_serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
+        return self._apply_status_update(order, serializer.validated_data, request)

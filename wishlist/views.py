@@ -174,3 +174,50 @@ class MoveToCartView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+class ToggleWishlistView(APIView):
+    """
+    post:
+    Toggle product in authenticated user's wishlist (adds if absent, removes if present).
+    Supports product_id via URL parameter or request body {"product_id": X}.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, product_id=None):
+        if not product_id:
+            product_id = request.data.get("product_id")
+        
+        if not product_id:
+            return Response(
+                {"detail": "product_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        product = get_object_or_404(Product, id=product_id)
+        existing = WishlistItem.objects.filter(user=request.user, product=product).first()
+
+        if existing:
+            existing.delete()
+            return Response(
+                {
+                    "detail": "Product removed from wishlist.",
+                    "is_wishlisted": False,
+                    "is_already_wishlisted": False,
+                    "product_id": product.id,
+                },
+                status=status.HTTP_200_OK
+            )
+        else:
+            item = WishlistItem.objects.create(user=request.user, product=product)
+            item_serializer = WishlistItemSerializer(item, context={"request": request})
+            return Response(
+                {
+                    "detail": "Product added to wishlist.",
+                    "is_wishlisted": True,
+                    "is_already_wishlisted": True,
+                    "product_id": product.id,
+                    "item": item_serializer.data,
+                },
+                status=status.HTTP_201_CREATED
+            )

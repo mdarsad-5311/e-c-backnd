@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -184,3 +185,57 @@ class ClearCartView(APIView):
         cart = Cart.objects.get(id=cart.id)
         response_serializer = CartSerializer(cart, context={"request": request})
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+class SyncCartView(APIView):
+    """
+    post:
+    Sync/migrate guest cart items to the authenticated user's cart upon login.
+    Accepts: {"items": [{"product_id": 1, "quantity": 2}, ...]}
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        items_data = request.data.get("items", [])
+        if not isinstance(items_data, list):
+            return Response(
+                {"detail": "items must be a list of objects containing product_id and quantity."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cart = get_user_cart(request.user)
+
+        with transaction.atomic():
+            for entry in items_data:
+                product_id = entry.get("product_id") or entry.get("id")
+                qty = entry.get("quantity") or entry.get("qty") or 1
+                try:
+                    qty = int(qty)
+                except (ValueError, TypeError):
+                    continue
+
+                if not product_id or qty < 1:
+                    continue
+
+                product = Product.objects.filter(id=product_id, is_active=True).first()
+                if not product or product.stock <= 0:
+                    continue
+
+                actual_qty = min(qty, product.stock)
+
+                cart_item, created = CartItem.objects.get_or_create(
+                    cart=cart,
+                    product=product,
+                    defaults={"quantity": actual_qty},
+                )
+                if not created:
+                    new_qty = min(cart_item.quantity + actual_qty, product.stock)
+                    cart_item.quantity = new_qty
+                    cart_item.save(update_fields=["quantity", "updated_at"])
+
+        cart = Cart.objects.prefetch_related(
+            "items__product__category",
+            "items__product__images",
+        ).get(id=cart.id)
+        serializer = CartSerializer(cart, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)

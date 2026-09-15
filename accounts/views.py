@@ -27,6 +27,22 @@ from .serializers import (
     UserSerializer,
 )
 
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.settings import api_settings
+
+
+class DynamicScopedRateThrottle(ScopedRateThrottle):
+    """
+    Scoped rate throttle that dynamically resolves rates from settings.
+    Ensures @override_settings and runtime configuration are immediately respected.
+    """
+    def get_rate(self):
+        rates = getattr(settings, 'REST_FRAMEWORK', {}).get('DEFAULT_THROTTLE_RATES', {}) or api_settings.DEFAULT_THROTTLE_RATES
+        if self.scope in rates:
+            return rates[self.scope]
+        return super().get_rate()
+
+
 User = get_user_model()
 
 
@@ -36,6 +52,7 @@ class RegisterView(generics.GenericAPIView):
     """
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [DynamicScopedRateThrottle]
     throttle_scope = 'register'
 
     def post(self, request, *args, **kwargs):
@@ -61,12 +78,14 @@ class LoginView(generics.GenericAPIView):
     """
     serializer_class = LoginSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [DynamicScopedRateThrottle]
     throttle_scope = 'login'
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            security_logger.warning(f"Failed login attempt: {request.data.get('username') or request.data.get('email')}")
+            login_id = request.data.get('username') or request.data.get('email') or request.data.get('identifier')
+            security_logger.warning(f"Failed login attempt: {login_id}")
             serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]

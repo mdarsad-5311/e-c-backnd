@@ -82,7 +82,7 @@ class Order(models.Model):
     payment_status = models.CharField(
         max_length=32,
         choices=PaymentStatus.choices,
-        default=PaymentStatus.PAID,
+        default=PaymentStatus.PENDING,
         help_text="Payment state for this order",
     )
 

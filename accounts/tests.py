@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -16,6 +17,7 @@ User = get_user_model()
 
 class UserRegistrationTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.register_url = reverse("register")
         self.valid_payload = {
@@ -170,6 +172,7 @@ class UserRegistrationTests(TestCase):
 
 class UserLoginTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.login_url = reverse("login")
         self.register_url = reverse("register")

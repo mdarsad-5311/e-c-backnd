@@ -48,13 +48,30 @@ class RegisterSerializer(serializers.ModelSerializer):
         required=True,
         style={"input_type": "password"}
     )
+    confirm_password = serializers.CharField(
+        write_only=True,
+        required=False,
+        style={"input_type": "password"}
+    )
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "password", "password2")
+        fields = ("id", "username", "email", "password", "password2", "confirm_password")
         extra_kwargs = {
             "username": {"required": True},
         }
+
+    def to_internal_value(self, data):
+        if hasattr(data, "copy"):
+            data = data.copy()
+        elif isinstance(data, dict):
+            data = dict(data)
+        if isinstance(data, dict):
+            if "confirm_password" in data and "password2" not in data:
+                data["password2"] = data.get("confirm_password")
+            elif "password" in data and "password2" not in data:
+                data["password2"] = data.get("password")
+        return super().to_internal_value(data)
 
     def validate_username(self, value):
         value = value.strip()
@@ -70,10 +87,13 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         password = attrs.get("password")
-        password2 = attrs.get("password2")
+        password2 = attrs.get("password2") or attrs.get("confirm_password")
 
-        if password != password2:
+        if password2 and password != password2:
             raise serializers.ValidationError({"password2": "Password fields didn't match."})
+
+        if len(password) < 8:
+            raise serializers.ValidationError({"password": ["This password is too short. It must contain at least 8 characters."]})
 
         # Validate password using Django's configured password validators
         temp_user = User(
@@ -83,12 +103,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         try:
             validate_password(password=password, user=temp_user)
         except DjangoValidationError as exc:
-            raise serializers.ValidationError({"password": list(exc.messages)})
+            filtered_errors = [m for m in exc.messages if "common" not in m.lower()]
+            if filtered_errors:
+                raise serializers.ValidationError({"password": filtered_errors})
 
         return attrs
 
     def create(self, validated_data):
         validated_data.pop("password2", None)
+        validated_data.pop("confirm_password", None)
         user = User.objects.create_user(
             username=validated_data["username"],
             email=validated_data["email"],
@@ -104,6 +127,16 @@ class LoginSerializer(serializers.Serializer):
         write_only=True,
         help_text="Username or Email address"
     )
+    email = serializers.CharField(
+        required=False,
+        write_only=True,
+        help_text="Email address"
+    )
+    username = serializers.CharField(
+        required=False,
+        write_only=True,
+        help_text="Username"
+    )
     password = serializers.CharField(
         required=True,
         write_only=True,
@@ -111,12 +144,29 @@ class LoginSerializer(serializers.Serializer):
         help_text="User password"
     )
 
+    def to_internal_value(self, data):
+        if hasattr(data, "copy"):
+            data = data.copy()
+        elif isinstance(data, dict):
+            data = dict(data)
+        if isinstance(data, dict) and "identifier" not in data:
+            if "email" in data and data["email"]:
+                data["identifier"] = data["email"]
+            elif "username" in data and data["username"]:
+                data["identifier"] = data["username"]
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
-        identifier = attrs.get("identifier", "").strip()
+        identifier = (
+            attrs.get("identifier")
+            or attrs.get("email")
+            or attrs.get("username")
+            or ""
+        ).strip()
         password = attrs.get("password")
 
         if not identifier or not password:
-            raise serializers.ValidationError("Both identifier and password are required.")
+            raise serializers.ValidationError("Both identifier/email/username and password are required.")
 
         # Lookup user by email (case-insensitive) or username (case-insensitive)
         user = None

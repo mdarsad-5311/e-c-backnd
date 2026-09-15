@@ -53,6 +53,16 @@ urlpatterns = [
         schema_view.with_ui("redoc", cache_timeout=0),
         name="schema-redoc",
     ),
+    path(
+        "api/docs/",
+        schema_view.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui-api-docs",
+    ),
+    path(
+        "docs/",
+        schema_view.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui-docs",
+    ),
 
     # Accounts / User Management Endpoints (v1 and default API namespaces)
     path("api/v1/", include("accounts.urls")),
@@ -101,7 +111,13 @@ urlpatterns = [
     path("api/auth/token/blacklist/", TokenBlacklistView.as_view(), name="token_blacklist_unversioned"),
 ]
 
-# Serve static & media files in development
+# Serve static & media files
+from django.views.static import serve
+
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    urlpatterns += [
+        re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+    ]
