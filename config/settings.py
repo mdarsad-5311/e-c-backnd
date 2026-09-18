@@ -19,23 +19,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = False
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='')
-if not SECRET_KEY:
-    if DEBUG:
-        SECRET_KEY = 'django-insecure-ecommerce-default-secret-key-change-in-production'
-    else:
-        raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG=False.")
-elif not DEBUG and SECRET_KEY.startswith('django-insecure-'):
-    raise ImproperlyConfigured("Insecure default SECRET_KEY detected in production. Set a secure SECRET_KEY in environment variables.")
+SECRET_KEY = config(
+    'SECRET_KEY',
+    default=os.environ.get('SECRET_KEY', 'django-insecure-ecommerce-default-secret-key-change-in-production')
+)
 
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='127.0.0.1,localhost,testserver,.vercel.app,.onrender.com',
+    default='umaima5311.pythonanywhere.com,localhost,127.0.0.1',
     cast=Csv()
 )
+for host in ['umaima5311.pythonanywhere.com', 'localhost', '127.0.0.1']:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 # Application definition
 DJANGO_APPS = [
@@ -147,16 +146,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000,https://e-com-five-pink.vercel.app',
+    default='https://e-com-five-pink.vercel.app,http://localhost:3000,http://127.0.0.1:3000',
     cast=Csv()
 )
+if 'https://e-com-five-pink.vercel.app' not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append('https://e-com-five-pink.vercel.app')
 CORS_ALLOW_CREDENTIALS = False
 
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000,https://e-com-five-pink.vercel.app',
+    default='https://e-com-five-pink.vercel.app,https://umaima5311.pythonanywhere.com,http://localhost:3000,http://127.0.0.1:3000',
     cast=Csv()
 )
+for origin in ['https://e-com-five-pink.vercel.app', 'https://umaima5311.pythonanywhere.com']:
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
