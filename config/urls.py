@@ -8,6 +8,7 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path, re_path
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
@@ -18,6 +19,17 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+
+def root_view(request):
+    """Root URL endpoint returning backend status."""
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": "Django backend is running",
+            "api": "/api/",
+            "docs": "/docs/",
+        }
+    )
 
 # Swagger / OpenAPI Schema Configuration
 schema_view = get_schema_view(
@@ -34,6 +46,9 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    # Root Endpoint
+    path("", root_view, name="root"),
+
     # Django Admin
     path("admin/", admin.site.urls),
 
