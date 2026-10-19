@@ -535,7 +535,7 @@ class AddressManagementTests(TestCase):
         self.assertEqual(response.data[0]["id"], addr_a.id)
 
     def test_address_03_cross_user_access_prevented(self):
-        """Test 3: User A cannot retrieve, update, or delete User B's address (IDOR prevention)."""
+        """Ensure User A cannot retrieve, update, or delete User B's address."""
         addr_b = Address.objects.create(
             user=self.user_b,
             full_name="User B Address",

@@ -52,7 +52,7 @@ class ProjectFoundationTests(TestCase):
         self.assertIn("access", response.data)
         self.assertIn("refresh", response.data)
 
-        # Validate access token has expected short lifespan (15 minutes Phase 9 update)
+        # Validate access token lifespan (15 minutes)
         access_token = AccessToken(response.data["access"])
         iat = access_token["iat"]
         exp = access_token["exp"]

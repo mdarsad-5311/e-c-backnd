@@ -28,9 +28,8 @@ payments_logger = logging.getLogger('payments')
 
 class CreatePaymentOrderView(APIView):
     """
-    Step 2: Create Razorpay Order
-    Accepts an internal Order ID, validates ownership & amounts,
-    creates a Razorpay Gateway Order, and initializes the Payment record.
+    Creates a Razorpay Gateway Order and initializes the Payment record
+    for the specified internal Order.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -57,7 +56,7 @@ class CreatePaymentOrderView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # 2. Validate order ownership (IDOR prevention)
+        # 2. Validate order ownership
         if order.user != request.user and not request.user.is_staff:
             return Response(
                 {"detail": "You do not have permission to access this order."},
@@ -144,7 +143,6 @@ class CreatePaymentOrderView(APIView):
 
 class VerifyPaymentView(APIView):
     """
-    Step 4: Verify Payment Signature
     Validates Razorpay HMAC SHA256 signature, transitions Payment & Order status to PAID / CONFIRMED.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -187,7 +185,7 @@ class VerifyPaymentView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # 2. Ownership check (IDOR prevention)
+        # 2. Ownership check
         if payment.user != request.user and not request.user.is_staff:
             return Response(
                 {"detail": "You do not have permission to verify this payment."},
@@ -258,7 +256,6 @@ class VerifyPaymentView(APIView):
 
 class PaymentStatusView(APIView):
     """
-    Step 6: Payment Status API
     GET /api/payments/status/<order_id>/
     Returns the real-time status of payment associated with given order.
     """
@@ -304,7 +301,6 @@ class PaymentStatusView(APIView):
 
 class PaymentFailureView(APIView):
     """
-    Step 5: Failed Payment Recording
     POST /api/payments/failure/
     Records failure details from the frontend without creating duplicate orders.
     """
@@ -370,7 +366,6 @@ class PaymentFailureView(APIView):
 
 class RetryPaymentView(APIView):
     """
-    Step 7: Retry Payment
     POST /api/payments/retry/
     Creates a fresh Razorpay order for an unpaid order and marks previous payment as FAILED.
     """

@@ -59,7 +59,7 @@ class VerifyPaymentAPITests(TestCase):
         })
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_idor_cannot_verify_other_user_payment(self):
+    def test_cannot_verify_other_user_payment(self):
         self.client.force_authenticate(user=self.other_user)
         response = self.client.post("/api/payments/verify/", {
             "razorpay_order_id": "order_rzp_verify_123",

@@ -49,7 +49,7 @@ class PaymentFailureAndStatusAPITests(TestCase):
         })
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_idor_cannot_report_failure_for_other_user_order(self):
+    def test_cannot_report_failure_for_other_user_order(self):
         self.client.force_authenticate(user=self.other_user)
         response = self.client.post("/api/payments/failure/", {
             "order_id": self.order.id,
@@ -80,7 +80,7 @@ class PaymentFailureAndStatusAPITests(TestCase):
         response = self.client.get(f"/api/payments/status/{self.order.id}/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_idor_cannot_check_status_of_other_user_order(self):
+    def test_cannot_check_status_of_other_user_order(self):
         self.client.force_authenticate(user=self.other_user)
         response = self.client.get(f"/api/payments/status/{self.order.id}/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

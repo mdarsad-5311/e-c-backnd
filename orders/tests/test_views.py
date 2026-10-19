@@ -88,7 +88,7 @@ class OrderViewSecurityAndManagementTests(TestCase):
         self.assertIn(self.order1.id, order_ids)
         self.assertNotIn(self.order2.id, order_ids)
 
-    def test_user_cannot_access_other_users_order_detail_idor_protection(self):
+    def test_user_cannot_access_other_users_order_detail(self):
         self.client.force_authenticate(user=self.user1)
         # Alice tries to retrieve Bob's order
         response = self.client.get(f"/api/orders/{self.order2.id}/")

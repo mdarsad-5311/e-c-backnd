@@ -47,7 +47,7 @@ class RetryPaymentAPITests(TestCase):
         response = self.client.post("/api/payments/retry/", {"order_id": self.order.id})
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_idor_cannot_retry_other_users_order(self):
+    def test_cannot_retry_other_users_order(self):
         self.client.force_authenticate(user=self.other_user)
         response = self.client.post("/api/payments/retry/", {"order_id": self.order.id})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

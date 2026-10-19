@@ -145,7 +145,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 class AddressViewSet(viewsets.ModelViewSet):
     """
     API ViewSet for managing shipping / billing addresses for the authenticated user.
-    Prevents cross-user IDOR access by filtering queryset strictly to the current user.
+    Filter address queryset strictly to the authenticated user.
     """
     serializer_class = AddressSerializer
     permission_classes = [permissions.IsAuthenticated]

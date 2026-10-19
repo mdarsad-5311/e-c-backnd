@@ -34,7 +34,7 @@ class SecurityRegressionTests(TestCase):
         self.address1 = Address.objects.create(user=self.user1, full_name="U1", city="C1", postal_code="000")
         self.review1 = Review.objects.create(user=self.user1, product=self.product, rating=5, comment="Great")
 
-    def test_cart_idor(self):
+    def test_cart_user_isolation(self):
         # Cart ViewSet get_queryset limits to request.user
         Cart.objects.create(user=self.user1)
         res = self.client2.get("/api/cart/")
@@ -42,15 +42,15 @@ class SecurityRegressionTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data.get('items', [])), 0)
 
-    def test_order_idor(self):
+    def test_order_cross_user_forbidden(self):
         res = self.client2.get(f"/api/orders/{self.order1.id}/")
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_address_idor(self):
+    def test_address_cross_user_forbidden(self):
         res = self.client2.put(f"/api/accounts/addresses/{self.address1.id}/", {"city": "Hacked"})
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_review_idor(self):
+    def test_review_cross_user_forbidden(self):
         res = self.client2.patch(f"/api/products/{self.product.id}/reviews/{self.review1.id}/", {"comment": "Hacked"})
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 

@@ -57,7 +57,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             .all()
         )
 
-        # Non-staff users only see their own orders (strict IDOR protection)
+        # Regular users only see their own orders
         if not self.request.user.is_staff:
             qs = qs.filter(user=self.request.user)
 
@@ -245,7 +245,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         order = self.get_object()
 
-        # IDOR and status validation
+        # Validate order status
         if order.status in [Order.OrderStatus.SHIPPED, Order.OrderStatus.DELIVERED, Order.OrderStatus.CANCELLED]:
             return Response(
                 {"detail": f"Cannot cancel an order with status '{order.get_status_display()}'."},

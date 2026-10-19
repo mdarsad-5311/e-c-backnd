@@ -55,7 +55,7 @@ class CreatePaymentOrderAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data["detail"], "Order not found.")
 
-    def test_idor_user_cannot_create_payment_for_other_user_order(self):
+    def test_user_cannot_create_payment_for_other_user_order(self):
         self.client.force_authenticate(user=self.user)
         response = self.client.post("/api/payments/create-order/", {"order_id": self.other_order.id})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
